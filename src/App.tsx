@@ -25,6 +25,9 @@ export default function App() {
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [sortBy, setSortBy] = useState<'az' | 'za' | 'yield'>('az');
   
+  // Pagination state to prevent rendering 1500+ items at once
+  const [visibleCount, setVisibleCount] = useState(40);
+  
   // Currently selected recipe for the 3x3 Hero Workstation
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe>(() => {
     // Default to Mace or Crafter or Crafting Table
@@ -118,7 +121,7 @@ export default function App() {
       showToast({
         title: 'Raw Material',
         description: `${cleanId.replace(/_/g, ' ')} is a mined/found material`,
-        type: 'warning',
+        type: 'info',
       });
     }
   };
@@ -172,6 +175,16 @@ export default function App() {
         return 0;
       });
   }, [searchQuery, selectedCategory, selectedVersion, showOnlyFavorites, favorites, sortBy]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setVisibleCount(40);
+  }, [searchQuery, selectedCategory, selectedVersion, showOnlyFavorites, sortBy]);
+
+  // Visible Recipes
+  const visibleRecipes = useMemo(() => {
+    return filteredRecipes.slice(0, visibleCount);
+  }, [filteredRecipes, visibleCount]);
 
   // Random Recipe Discovery
   const handleRandomRecipe = () => {
@@ -388,17 +401,35 @@ export default function App() {
 
         {/* Craftable Items Catalog Grid */}
         {filteredRecipes.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6 pt-2">
-            {filteredRecipes.map((recipe) => (
-              <RecipeCard
-                key={recipe.id}
-                recipe={recipe}
-                isSelected={selectedRecipe?.output.item === recipe.output.item}
-                isFavorite={favorites.includes(recipe.id) || favorites.includes(recipe.output.item)}
-                onSelect={handleSelectRecipe}
-                onToggleFavorite={toggleFavorite}
-              />
-            ))}
+          <div className="space-y-8 pb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6 pt-2">
+              {visibleRecipes.map((recipe) => (
+                <RecipeCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  isSelected={selectedRecipe?.output.item === recipe.output.item}
+                  isFavorite={favorites.includes(recipe.id) || favorites.includes(recipe.output.item)}
+                  onSelect={handleSelectRecipe}
+                  onToggleFavorite={toggleFavorite}
+                />
+              ))}
+            </div>
+            
+            {/* Load More Button */}
+            {visibleCount < filteredRecipes.length && (
+              <div className="flex justify-center pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playWoodClick();
+                    setVisibleCount(prev => prev + 40);
+                  }}
+                  className="btn-3d-secondary px-6 py-3 rounded-xs font-pixel text-xs text-[#FFFFFF] border-2 border-[#353e37] hover:border-[#55C64B] transition-colors"
+                >
+                  Load More Items ({filteredRecipes.length - visibleCount} remaining)
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           /* Empty State */
